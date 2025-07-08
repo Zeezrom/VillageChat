@@ -7,22 +7,22 @@ const tokens = (n) => {
 async function main() {
   // Setup accounts & variables
   const [deployer] = await ethers.getSigners()
-  const NAME = "Dappcord"
-  const SYMBOL = "DC"
+  const NAME = "VillageChat"
+  const SYMBOL = "VC"
 
   // Deploy contract
-  const Dappcord = await ethers.getContractFactory("Dappcord")
-  const dappcord = await Dappcord.deploy(NAME, SYMBOL)
-  await dappcord.deployed()
+  const VillageChat = await ethers.getContractFactory("VillageChat")
+  const villageChat = await VillageChat.deploy(NAME, SYMBOL)
+  await villageChat.deployed()
 
-  console.log(`Deployed Dappcord Contract at: ${dappcord.address}\n`)
+  console.log(`Deployed VillageChat Contract at: ${villageChat.address}\n`)
 
   // Create 3 Channels
-  const CHANNEL_NAMES = ["general", "intro", "jobs"]
+  const CHANNEL_NAMES = ["general", "village", "resources"]
   const COSTS = [tokens(1), tokens(0), tokens(0.25)]
 
   for (var i = 0; i < 3; i++) {
-    const transaction = await dappcord.connect(deployer).createChannel(CHANNEL_NAMES[i], COSTS[i])
+    const transaction = await villageChat.connect(deployer).createChannel(CHANNEL_NAMES[i], COSTS[i])
     await transaction.wait()
 
     console.log(`Created text channel #${CHANNEL_NAMES[i]}`)
