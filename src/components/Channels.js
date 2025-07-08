@@ -1,14 +1,14 @@
-const Channels = ({ provider, account, dappcord, channels, currentChannel, setCurrentChannel }) => {
+const Channels = ({ provider, account, villageChat, channels, currentChannel, setCurrentChannel }) => {
   const channelHandler = async (channel) => {
     // Check if user has joined
     // If they haven't allow them to mint.
-    const hasJoined = await dappcord.hasJoined(channel.id, account)
+    const hasJoined = await villageChat.hasJoined(channel.id, account)
 
     if (hasJoined) {
       setCurrentChannel(channel)
     } else {
       const signer = await provider.getSigner()
-      const transaction = await dappcord.connect(signer).mint(channel.id, { value: channel.cost })
+      const transaction = await villageChat.connect(signer).mint(channel.id, { value: channel.cost })
       await transaction.wait()
       setCurrentChannel(channel)
     }
@@ -27,16 +27,6 @@ const Channels = ({ provider, account, dappcord, channels, currentChannel, setCu
               {channel.name}
             </li>
           ))}
-        </ul>
-      </div>
-
-      <div className="channels__voice">
-        <h2>Voice Channels</h2>
-
-        <ul>
-          <li>Channel 1</li>
-          <li>Channel 2</li>
-          <li>Channel 3</li>
         </ul>
       </div>
     </div>

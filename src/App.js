@@ -7,9 +7,12 @@ import Navigation from './components/Navigation'
 import Servers from './components/Servers'
 import Channels from './components/Channels'
 import Messages from './components/Messages'
+import Vote from './components/Vote'
+import Leaders from './components/Leaders'
+import Marketplace from './components/Marketplace'
 
 // ABIs
-import Dappcord from './abis/Dappcord.json'
+import VillageChat from './abis/VillageChat.json'
 
 // Config
 import config from './config.json';
@@ -23,11 +26,15 @@ function App() {
   const [provider, setProvider] = useState(null)
   const [account, setAccount] = useState(null)
 
-  const [dappcord, setDappcord] = useState(null)
+  const [villageChat, setVillageChat] = useState(null)
   const [channels, setChannels] = useState([])
 
   const [currentChannel, setCurrentChannel] = useState(null)
   const [messages, setMessages] = useState([])
+
+  // New state for page navigation
+  const [currentPage, setCurrentPage] = useState('chat') // 'chat', 'vote', 'leaders', or 'marketplace'
+  const [activeServer, setActiveServer] = useState('chat')
 
   //creating an ether provider
   const loadBlockchainData = async () => {
@@ -35,14 +42,14 @@ function App() {
     setProvider(provider)
 
     const network = await provider.getNetwork()
-    const dappcord = new ethers.Contract(config[network.chainId].Dappcord.address, Dappcord, provider)
-    setDappcord(dappcord)
+    const villageChat = new ethers.Contract(config[network.chainId].VillageChat.address, VillageChat, provider)
+    setVillageChat(villageChat)
 
-    const totalChannels = await dappcord.totalChannels()
+    const totalChannels = await villageChat.totalChannels()
     const channels = []
 
     for (var i = 1; i <= totalChannels; i++) {
-      const channel = await dappcord.getChannel(i)
+      const channel = await villageChat.getChannel(i)
       channels.push(channel)
       console.log(channel)
     }
@@ -79,23 +86,38 @@ function App() {
     }
   }, [])
 
+  const handleServerClick = (server) => {
+    setCurrentPage(server)
+    setActiveServer(server)
+  }
+
   return (
     <div>
       <Navigation account={account} setAccount={setAccount} />
 
       <main>
-        <Servers />
+        <Servers onServerClick={handleServerClick} activeServer={activeServer} />
 
-        <Channels
-          provider={provider}
-          account={account}
-          dappcord={dappcord}
-          channels={channels}
-          currentChannel={currentChannel}
-          setCurrentChannel={setCurrentChannel}
-        />
+        {currentPage === 'chat' ? (
+          <>
+            <Channels
+              provider={provider}
+              account={account}
+              villageChat={villageChat}
+              channels={channels}
+              currentChannel={currentChannel}
+              setCurrentChannel={setCurrentChannel}
+            />
 
-        <Messages account={account} messages={messages} currentChannel={currentChannel} />
+            <Messages account={account} messages={messages} currentChannel={currentChannel} />
+          </>
+        ) : currentPage === 'vote' ? (
+          <Vote />
+        ) : currentPage === 'leaders' ? (
+          <Leaders />
+        ) : (
+          <Marketplace />
+        )}
       </main>
     </div>
   );

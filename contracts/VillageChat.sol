@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 //contract library
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
-contract Dappcord is ERC721 {
+contract VillageChat is ERC721 {
     uint256 public totalSupply;
     uint256 public totalChannels;
     address public owner;
