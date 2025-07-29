@@ -10,6 +10,9 @@ import Messages from './components/Messages'
 import Vote from './components/Vote'
 import Leaders from './components/Leaders'
 import Marketplace from './components/Marketplace'
+import Chief from './components/Chief'
+import AdminManager from './components/AdminManager'
+import DebugInfo from './components/DebugInfo'
 
 // ABIs
 import VillageChat from './abis/VillageChat.json'
@@ -33,8 +36,33 @@ function App() {
   const [messages, setMessages] = useState([])
 
   // New state for page navigation
-  const [currentPage, setCurrentPage] = useState('chat') // 'chat', 'vote', 'leaders', or 'marketplace'
+  const [currentPage, setCurrentPage] = useState('chat') // 'chat', 'vote', 'leaders', 'marketplace', or 'chief'
   const [activeServer, setActiveServer] = useState('chat')
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [isOwner, setIsOwner] = useState(false)
+
+  // Check admin status
+  const checkAdminStatus = async (villageChatContract, userAccount) => {
+    if (!villageChatContract || !userAccount) return
+    
+    try {
+      console.log('Checking admin status for account:', userAccount)
+      const isAdminStatus = await villageChatContract.isAdmin(userAccount)
+      const ownerAddress = await villageChatContract.owner()
+      const isOwnerStatus = userAccount.toLowerCase() === ownerAddress.toLowerCase()
+      
+      console.log('Admin status:', isAdminStatus)
+      console.log('Owner status:', isOwnerStatus)
+      console.log('Owner address:', ownerAddress)
+      
+      setIsAdmin(isAdminStatus)
+      setIsOwner(isOwnerStatus)
+    } catch (error) {
+      console.error('Error checking admin/owner status:', error)
+      setIsAdmin(false)
+      setIsOwner(false)
+    }
+  }
 
   //creating an ether provider
   const loadBlockchainData = async () => {
@@ -59,6 +87,11 @@ function App() {
     window.ethereum.on('accountsChanged', async () => {
       window.location.reload()
     })
+
+    // Check admin status after contract is loaded
+    if (account) {
+      await checkAdminStatus(villageChat, account)
+    }
   }
 
   //react hook to load in the data
@@ -86,7 +119,20 @@ function App() {
     }
   }, [])
 
+  // Check admin status when account or contract changes
+  useEffect(() => {
+    if (villageChat && account) {
+      checkAdminStatus(villageChat, account)
+    }
+  }, [villageChat, account])
+
   const handleServerClick = (server) => {
+    // Check if user is trying to access admin page
+    if (server === 'chief' && !isAdmin) {
+      alert('Access denied. Only administrators can access the Chief Admin Panel.')
+      return
+    }
+    
     setCurrentPage(server)
     setActiveServer(server)
   }
@@ -94,9 +140,10 @@ function App() {
   return (
     <div>
       <Navigation account={account} setAccount={setAccount} />
+      <DebugInfo account={account} isAdmin={isAdmin} isOwner={isOwner} villageChat={villageChat} />
 
       <main>
-        <Servers onServerClick={handleServerClick} activeServer={activeServer} />
+        <Servers onServerClick={handleServerClick} activeServer={activeServer} isAdmin={isAdmin} />
 
         {currentPage === 'chat' ? (
           <>
@@ -115,6 +162,12 @@ function App() {
           <Vote />
         ) : currentPage === 'leaders' ? (
           <Leaders />
+        ) : currentPage === 'chief' ? (
+          <Chief 
+            villageChat={villageChat}
+            account={account}
+            isOwner={isOwner}
+          />
         ) : (
           <Marketplace />
         )}

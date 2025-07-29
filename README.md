@@ -86,6 +86,43 @@ Before running this project, make sure you have the following installed:
    - Chain ID: `31337`
    - Currency Symbol: `ETH`
 
+### Admin Access Control
+
+The application implements a hierarchical access control system:
+
+#### **For Regular Users:**
+1. Connect wallet → No admin icon visible
+2. Try to access Chief page → Access denied message
+3. Can use all other features normally
+
+#### **For Admins:**
+1. Connect wallet → Admin icon (🛡️) appears in sidebar
+2. Click admin icon → Access to Chief Admin Panel
+3. Can manage users and usernames
+4. Cannot manage other admins (only owner can)
+
+#### **For Contract Owner:**
+1. Connect wallet → Admin icon appears + owner privileges
+2. Access Chief Admin Panel → See AdminManager section
+3. Can add/remove admins via blockchain transactions
+4. Full control over the entire system
+
+### Admin Management
+
+#### **Adding Admins:**
+1. Connect as contract owner
+2. Go to Chief Admin Panel
+3. Use AdminManager section
+4. Enter Ethereum address
+5. Click "Add Admin"
+
+#### **Removing Admins:**
+1. Connect as contract owner
+2. Go to Chief Admin Panel
+3. Use AdminManager section
+4. Enter admin's Ethereum address
+5. Click "Remove Admin"
+
 ### Joining Channels
 
 1. **Browse available channels** in the left sidebar
@@ -161,6 +198,30 @@ VillageChat/
 4. **MetaMask connection issues**
    - Make sure MetaMask is installed and unlocked
    - Try refreshing the page and reconnecting
+
+5. **Admin access issues**
+   - **Disconnect and reconnect**: Click on your wallet address to disconnect, then reconnect
+   - **Check deployment**: Ensure you've deployed the updated contract with admin functionality
+   - **Verify admin status**: Use the contract's `isAdmin(address)` function to check if your address is an admin
+   - **Owner vs Admin**: Remember that only the contract owner can add/remove admins
+   - **Test accounts**: Use the Hardhat test accounts for testing admin functionality:
+     - Account 0: Contract owner (full admin privileges) - `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266`
+     - Account 1: Regular admin (can access Chief panel, manage users) - `0x70997970C51812dc3A010C7d01b50e0d17dc79C8`
+     - Account 2: Regular user (no admin access) - `0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC`
+
+### Testing Admin Access
+
+To test the admin functionality:
+
+1. **Deploy the contract** with the updated script
+2. **Import test accounts** into MetaMask:
+   - Account 0 (Owner): `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266`
+   - Account 1 (Admin): `0x70997970C51812dc3A010C7d01b50e0d17dc79C8`
+   - Account 2 (Regular User): `0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC`
+3. **Switch between accounts** in MetaMask to test different permission levels
+4. **Disconnect/reconnect** if admin status doesn't update immediately
+
+**Note:** Account 0 is the contract owner and Account 1 is a regular admin. This makes testing easier since Account 0 is typically the default account in MetaMask.
 
 ### Network Configuration
 

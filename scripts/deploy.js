@@ -1,35 +1,47 @@
-const hre = require("hardhat")
-
-const tokens = (n) => {
-  return ethers.utils.parseUnits(n.toString(), 'ether')
-}
+const hre = require("hardhat");
 
 async function main() {
-  // Setup accounts & variables
-  const [deployer] = await ethers.getSigners()
-  const NAME = "VillageChat"
-  const SYMBOL = "VC"
+  // Get the signer accounts
+  const [account0, account1, account2] = await hre.ethers.getSigners();
 
-  // Deploy contract
-  const VillageChat = await ethers.getContractFactory("VillageChat")
-  const villageChat = await VillageChat.deploy(NAME, SYMBOL)
-  await villageChat.deployed()
+  // Deploy contract using Account 0 as the owner
+  const VillageChat = await hre.ethers.getContractFactory("VillageChat");
+  const villageChat = await VillageChat.connect(account0).deploy("VillageChat", "VC");
 
-  console.log(`Deployed VillageChat Contract at: ${villageChat.address}\n`)
+  await villageChat.deployed();
 
-  // Create 3 Channels
-  const CHANNEL_NAMES = ["general", "village", "resources"]
-  const COSTS = [tokens(1), tokens(0), tokens(0.25)]
+  console.log("VillageChat deployed to:", villageChat.address);
 
-  for (var i = 0; i < 3; i++) {
-    const transaction = await villageChat.connect(deployer).createChannel(CHANNEL_NAMES[i], COSTS[i])
-    await transaction.wait()
+  // Create channels using Account 0 (owner)
+  await villageChat.connect(account0).createChannel("general", ethers.utils.parseEther("1"));
+  await villageChat.connect(account0).createChannel("intro", ethers.utils.parseEther("0"));
+  await villageChat.connect(account0).createChannel("jobs", ethers.utils.parseEther("0.25"));
 
-    console.log(`Created text channel #${CHANNEL_NAMES[i]}`)
+  console.log("Channels created!");
+
+  // Add Account 1 as admin using Account 0 (owner)
+  try {
+    await villageChat.connect(account0).addAdmin(account1.address);
+    console.log(`Added ${account1.address} as admin`);
+  } catch (error) {
+    console.log("Could not add admin:", error.message);
   }
+
+  console.log("\nDeployment complete!");
+  console.log("Contract address:", villageChat.address);
+  console.log("Owner (Account 0):", account0.address);
+  console.log("Admin (Account 1):", account1.address);
+  console.log("Regular User (Account 2):", account2.address);
+  
+  console.log("\nAccount Details:");
+  console.log("Account 0 (Owner):", account0.address);
+  console.log("Account 1 (Admin):", account1.address);
+  console.log("Account 2 (Regular User):", account2.address);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
