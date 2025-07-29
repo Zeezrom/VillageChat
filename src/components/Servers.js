@@ -2,7 +2,9 @@ import React from 'react';
 import './Servers.css';
 
 // Remove SVG imports and use Unicode symbols instead
-const Servers = ({ onServerClick, activeServer }) => {
+const Servers = ({ onServerClick, activeServer, isAdmin }) => {
+  console.log('Servers component - isAdmin:', isAdmin)
+  
   return (
     <div className="servers">
       <div 
@@ -29,6 +31,15 @@ const Servers = ({ onServerClick, activeServer }) => {
       >
         🏪
       </div>
+      {isAdmin && (
+        <div 
+          className={`server-icon ${activeServer === 'chief' ? 'active' : ''}`} 
+          onClick={() => onServerClick('chief')}
+          title="Chief Admin Panel"
+        >
+          🛡️
+        </div>
+      )}
     </div>
   );
 };

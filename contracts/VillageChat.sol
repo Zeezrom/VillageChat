@@ -9,7 +9,10 @@ contract VillageChat is ERC721 {
     uint256 public totalChannels;
     address public owner;
 
-//channel datastructure
+    // Admin management
+    mapping(address => bool) public admins;
+
+    //channel datastructure
     struct Channel {
         uint256 id;
         string name;
@@ -27,11 +30,34 @@ contract VillageChat is ERC721 {
         _;
     }
 
+    modifier onlyAdmin() {
+        require(admins[msg.sender] || msg.sender == owner, "Not authorized");
+        _;
+    }
+
     constructor(string memory _name, string memory _symbol)
         ERC721(_name, _symbol)
     {
         // assign the one who sent the contract as the owner
         owner = msg.sender;
+        // Add owner as first admin
+        admins[msg.sender] = true;
+    }
+
+    // Admin management functions
+    function addAdmin(address _admin) public onlyOwner {
+        require(!admins[_admin], "Already an admin");
+        admins[_admin] = true;
+    }
+
+    function removeAdmin(address _admin) public onlyOwner {
+        require(admins[_admin], "Not an admin");
+        require(_admin != owner, "Cannot remove owner");
+        admins[_admin] = false;
+    }
+
+    function isAdmin(address user) public view returns (bool) {
+        return admins[user];
     }
 
 //example of use of modifier

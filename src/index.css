@@ -91,10 +91,15 @@ nav::before {
   text-transform: uppercase;
 }
 
+.nav__account {
+  display: flex;
+  align-items: center;
+  margin: 0 75px 0 auto;
+}
+
 .nav__connect {
   width: 175px;
   height: 50px;
-  margin: 0 75px 0 auto;
   background: linear-gradient(45deg, var(--clr-bg-accent), var(--clr-bg-tertiary));
   color: var(--clr-neon-green);
   border: 2px solid var(--clr-neon-green);
@@ -131,6 +136,12 @@ nav::before {
   color: var(--clr-bg-primary);
   box-shadow: 0 0 20px var(--clr-neon-green);
   transform: translateY(-2px);
+  cursor: pointer;
+}
+
+.nav__connect:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 255, 65, 0.3);
 }
 
 /* ------------------------------------------------------ */

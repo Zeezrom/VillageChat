@@ -1,6 +1,8 @@
 import { ethers } from 'ethers'
+import { useState } from 'react'
 
 const Navigation = ({ account, setAccount }) => {
+  const [forceAccountSelection, setForceAccountSelection] = useState(false)
   const connectHandler = async () => {
     try {
       // Check if MetaMask is installed
@@ -25,12 +27,25 @@ Then refresh this page and try connecting again.`
         return
       }
 
-      // Request account access
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
+      // Request account access with explicit permission request
+      let accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
       
       if (accounts.length === 0) {
         alert('Please connect your MetaMask wallet!')
         return
+      }
+
+      // If we need to force account selection or multiple accounts are available
+      if (forceAccountSelection || accounts.length > 1) {
+        // Request permissions again to show account selection
+        await window.ethereum.request({
+          method: 'wallet_requestPermissions',
+          params: [{ eth_accounts: {} }]
+        })
+        
+        // Get the accounts again after permission request
+        accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
+        setForceAccountSelection(false)
       }
 
       const account = ethers.utils.getAddress(accounts[0])
@@ -46,6 +61,42 @@ Then refresh this page and try connecting again.`
     }
   }
 
+  const disconnectHandler = () => {
+    setAccount(null)
+    setForceAccountSelection(true)
+    
+    // Clear MetaMask connection state to force account selection
+    if (window.ethereum) {
+      // Remove all listeners
+      window.ethereum.removeAllListeners()
+      
+      // Force MetaMask to show account selection by clearing permissions
+      try {
+        // Method 1: Try to disconnect if the method exists
+        if (typeof window.ethereum.disconnect === 'function') {
+          window.ethereum.disconnect()
+        }
+        
+        // Method 2: Clear permissions to force re-authorization
+        if (window.ethereum.request) {
+          window.ethereum.request({
+            method: 'wallet_requestPermissions',
+            params: [{ eth_accounts: {} }]
+          }).catch(() => {
+            // Ignore errors, we just want to clear the state
+          })
+        }
+        
+        // Method 3: Clear any cached account data
+        localStorage.removeItem('metamask-accounts')
+        sessionStorage.removeItem('metamask-accounts')
+        
+      } catch (error) {
+        console.log('MetaMask disconnect cleanup:', error.message)
+      }
+    }
+  }
+
   return (
     <nav>
       <div className='nav__brand'>
@@ -53,12 +104,16 @@ Then refresh this page and try connecting again.`
       </div>
 
       {account ? (
-        <button
-          type="button"
-          className='nav__connect'
-        >
-          {account.slice(0, 6) + '...' + account.slice(38, 42)}
-        </button>
+        <div className="nav__account">
+          <button
+            type="button"
+            className='nav__connect'
+            onClick={disconnectHandler}
+            title="Click to disconnect"
+          >
+            {account.slice(0, 6) + '...' + account.slice(38, 42)}
+          </button>
+        </div>
       ) : (
         <button
           type="button"
