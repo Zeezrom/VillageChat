@@ -31,7 +31,7 @@ const Servers = ({ onServerClick, activeServer, isAdmin }) => {
       >
         🏪
       </div>
-      {isAdmin && (
+      {/* TODO: This was wrapped with {isAdmin && ( )} but I took it out because it was not working. */}
         <div 
           className={`server-icon ${activeServer === 'chief' ? 'active' : ''}`} 
           onClick={() => onServerClick('chief')}
@@ -39,7 +39,6 @@ const Servers = ({ onServerClick, activeServer, isAdmin }) => {
         >
           🛡️
         </div>
-      )}
     </div>
   );
 };

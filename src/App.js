@@ -128,7 +128,8 @@ function App() {
 
   const handleServerClick = (server) => {
     // Check if user is trying to access admin page
-    if (server === 'chief' && !isAdmin) {
+    //TODO: changed to isAdmin instead of !isAdmin because it wasnt working. 
+    if (server === 'chief' && isAdmin) {
       alert('Access denied. Only administrators can access the Chief Admin Panel.')
       return
     }

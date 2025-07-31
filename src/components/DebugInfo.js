@@ -6,8 +6,8 @@ const DebugInfo = ({ account, isAdmin, isOwner, villageChat }) => {
   return (
     <div style={{
       position: 'fixed',
-      top: '10px',
-      right: '10px',
+      top: '10%',
+      right: '50%',
       background: 'rgba(0, 0, 0, 0.8)',
       border: '1px solid #00ff41',
       borderRadius: '5px',
