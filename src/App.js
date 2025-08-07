@@ -13,6 +13,7 @@ import Marketplace from './components/Marketplace'
 import Chief from './components/Chief'
 import AdminManager from './components/AdminManager'
 import DebugInfo from './components/DebugInfo'
+import LandingPage from './components/LandingPage'
 
 // ABIs
 import VillageChat from './abis/VillageChat.json'
@@ -40,8 +41,12 @@ function App() {
   const [activeServer, setActiveServer] = useState('chat')
   const [isAdmin, setIsAdmin] = useState(false)
   const [isOwner, setIsOwner] = useState(false)
+  const [debugVisible, setDebugVisible] = useState(true)
+  const [isUserRegistered, setIsUserRegistered] = useState(false)
+  const [showLandingPage, setShowLandingPage] = useState(true)
 
-  // Check admin status
+
+  // Check admin status and user registration
   const checkAdminStatus = async (villageChatContract, userAccount) => {
     if (!villageChatContract || !userAccount) return
     
@@ -50,17 +55,31 @@ function App() {
       const isAdminStatus = await villageChatContract.isAdmin(userAccount)
       const ownerAddress = await villageChatContract.owner()
       const isOwnerStatus = userAccount.toLowerCase() === ownerAddress.toLowerCase()
+      const userRegisteredStatus = await villageChatContract.isUserRegistered(userAccount)
       
       console.log('Admin status:', isAdminStatus)
       console.log('Owner status:', isOwnerStatus)
+      console.log('User registered status:', userRegisteredStatus)
       console.log('Owner address:', ownerAddress)
       
       setIsAdmin(isAdminStatus)
       setIsOwner(isOwnerStatus)
+      setIsUserRegistered(userRegisteredStatus)
+      
+      // If user is admin/owner, they don't need to go through token validation
+      if (isAdminStatus || isOwnerStatus) {
+        setShowLandingPage(false)
+      } else if (userRegisteredStatus) {
+        setShowLandingPage(false)
+      } else {
+        setShowLandingPage(true)
+      }
     } catch (error) {
       console.error('Error checking admin/owner status:', error)
       setIsAdmin(false)
       setIsOwner(false)
+      setIsUserRegistered(false)
+      setShowLandingPage(true)
     }
   }
 
@@ -128,8 +147,7 @@ function App() {
 
   const handleServerClick = (server) => {
     // Check if user is trying to access admin page
-    //TODO: changed to isAdmin instead of !isAdmin because it wasnt working. 
-    if (server === 'chief' && isAdmin) {
+    if (server === 'chief' && !isAdmin) {
       alert('Access denied. Only administrators can access the Chief Admin Panel.')
       return
     }
@@ -138,41 +156,81 @@ function App() {
     setActiveServer(server)
   }
 
+  const toggleDebug = () => {
+    setDebugVisible(!debugVisible)
+  }
+
+  const handleLogin = () => {
+    setShowLandingPage(false)
+    setIsUserRegistered(true)
+  }
+
+  const handleLogout = () => {
+    setShowLandingPage(true)
+    setIsUserRegistered(false)
+    setAccount(null)
+  }
+
+  const handleDisconnect = () => {
+    // Reset all user state when wallet is disconnected
+    setIsAdmin(false)
+    setIsOwner(false)
+    setIsUserRegistered(false)
+    setAccount(null)
+  }
+
   return (
     <div>
-      <Navigation account={account} setAccount={setAccount} />
-      <DebugInfo account={account} isAdmin={isAdmin} isOwner={isOwner} villageChat={villageChat} />
-
-      <main>
-        <Servers onServerClick={handleServerClick} activeServer={activeServer} isAdmin={isAdmin} />
-
-        {currentPage === 'chat' ? (
-          <>
-            <Channels
-              provider={provider}
-              account={account}
-              villageChat={villageChat}
-              channels={channels}
-              currentChannel={currentChannel}
-              setCurrentChannel={setCurrentChannel}
-            />
-
-            <Messages account={account} messages={messages} currentChannel={currentChannel} />
-          </>
-        ) : currentPage === 'vote' ? (
-          <Vote />
-        ) : currentPage === 'leaders' ? (
-          <Leaders />
-        ) : currentPage === 'chief' ? (
-          <Chief 
-            villageChat={villageChat}
-            account={account}
-            isOwner={isOwner}
+      {showLandingPage ? (
+        <LandingPage 
+          onLogin={handleLogin}
+          villageChat={villageChat}
+          account={account}
+        />
+      ) : (
+        <>
+          <Navigation account={account} setAccount={setAccount} onToggleDebug={toggleDebug} onLogout={handleLogout} onDisconnect={handleDisconnect} />
+          <DebugInfo 
+            account={account} 
+            isAdmin={isAdmin} 
+            isOwner={isOwner} 
+            villageChat={villageChat} 
+            isVisible={debugVisible}
+            onClose={() => setDebugVisible(false)}
           />
-        ) : (
-          <Marketplace />
-        )}
-      </main>
+
+          <main>
+            <Servers onServerClick={handleServerClick} activeServer={activeServer} isAdmin={isAdmin} />
+
+            {currentPage === 'chat' ? (
+              <>
+                <Channels
+                  provider={provider}
+                  account={account}
+                  villageChat={villageChat}
+                  channels={channels}
+                  currentChannel={currentChannel}
+                  setCurrentChannel={setCurrentChannel}
+                />
+
+                <Messages account={account} messages={messages} currentChannel={currentChannel} />
+              </>
+            ) : currentPage === 'vote' ? (
+              <Vote />
+            ) : currentPage === 'leaders' ? (
+              <Leaders />
+            ) : currentPage === 'chief' ? (
+              <Chief 
+                villageChat={villageChat}
+                account={account}
+                isOwner={isOwner}
+              />
+            ) : (
+              <Marketplace />
+            )}
+          </main>
+        </>
+      )}
     </div>
   );
 }

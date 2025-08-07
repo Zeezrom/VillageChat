@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './Chief.css';
 import AdminManager from './AdminManager';
+import TokenManager from './TokenManager';
 
 const Chief = ({ villageChat, account, isOwner }) => {
   const [users, setUsers] = useState([
@@ -161,6 +162,12 @@ const Chief = ({ villageChat, account, isOwner }) => {
           isOwner={isOwner} 
         />
       )}
+
+      <TokenManager 
+        villageChat={villageChat} 
+        account={account} 
+        isOwner={isOwner} 
+      />
 
       <div className="chief-content">
         <div className="users-list">
