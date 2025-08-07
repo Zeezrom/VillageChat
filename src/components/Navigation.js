@@ -1,7 +1,7 @@
 import { ethers } from 'ethers'
 import { useState } from 'react'
 
-const Navigation = ({ account, setAccount }) => {
+const Navigation = ({ account, setAccount, onToggleDebug, onLogout, onDisconnect }) => {
   const [forceAccountSelection, setForceAccountSelection] = useState(false)
   const connectHandler = async () => {
     try {
@@ -95,6 +95,9 @@ Then refresh this page and try connecting again.`
         console.log('MetaMask disconnect cleanup:', error.message)
       }
     }
+    
+    // Call the parent disconnect handler to reset all state
+    onDisconnect()
   }
 
   return (
@@ -103,8 +106,50 @@ Then refresh this page and try connecting again.`
         <h1>VILLAGE CHAT</h1>
       </div>
 
-      {account ? (
-        <div className="nav__account">
+      <div className="nav__logout">
+        <button
+          type="button"
+          onClick={onLogout}
+          style={{
+            background: 'none',
+            border: '1px solid #ff0040',
+            color: '#ff0040',
+            borderRadius: '5px',
+            padding: '8px 12px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontFamily: 'monospace',
+            transition: 'all 0.3s ease'
+          }}
+          title="Log out and return to landing page"
+        >
+          🚪 Log Out
+        </button>
+      </div>
+
+      <div className="nav__controls">
+        {account && (
+          <button
+            type="button"
+            onClick={onToggleDebug}
+            style={{
+              background: 'none',
+              border: '1px solid #00ff41',
+              color: '#00ff41',
+              borderRadius: '5px',
+              padding: '8px 12px',
+              marginRight: '10px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontFamily: 'monospace'
+            }}
+            title="Toggle debug panel"
+          >
+            🐛 Debug
+          </button>
+        )}
+        
+        {account ? (
           <button
             type="button"
             className='nav__connect'
@@ -113,16 +158,16 @@ Then refresh this page and try connecting again.`
           >
             {account.slice(0, 6) + '...' + account.slice(38, 42)}
           </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          className='nav__connect'
-          onClick={connectHandler}
-        >
-          Connect
-        </button>
-      )}
+        ) : (
+          <button
+            type="button"
+            className='nav__connect'
+            onClick={connectHandler}
+          >
+            Connect
+          </button>
+        )}
+      </div>
     </nav>
   );
 }
