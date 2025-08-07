@@ -18,6 +18,9 @@ contract VillageChat is ERC721 {
     mapping(address => bool) public registeredUsers;
     uint256 public tokenCounter;
 
+    // Events
+    event TokenGenerated(bytes32 indexed token, address indexed admin, uint256 timestamp);
+
     //channel datastructure
     struct Channel {
         uint256 id;
@@ -71,6 +74,7 @@ contract VillageChat is ERC721 {
         tokenCounter++;
         bytes32 token = keccak256(abi.encodePacked(block.timestamp, msg.sender, tokenCounter));
         validTokens[token] = true;
+        emit TokenGenerated(token, msg.sender, block.timestamp);
         return token;
     }
 

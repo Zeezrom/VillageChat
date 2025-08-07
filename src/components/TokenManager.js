@@ -20,6 +20,7 @@ const TokenManager = ({ villageChat, account, isOwner }) => {
     setGeneratedToken('');
 
     try {
+      // Call the generateToken function as a transaction
       const tx = await villageChat.generateToken();
       const receipt = await tx.wait();
       
@@ -27,17 +28,20 @@ const TokenManager = ({ villageChat, account, isOwner }) => {
       const event = receipt.events?.find(e => e.event === 'TokenGenerated');
       if (event) {
         const token = event.args.token;
-        setGeneratedToken(ethers.utils.parseBytes32String(token));
+        // Convert the bytes32 token to a readable string
+        const tokenString = ethers.utils.parseBytes32String(token);
+        setGeneratedToken(tokenString);
         setSuccess('Token generated successfully!');
       } else {
-        // Fallback: try to get the token from the transaction
-        const token = await villageChat.generateToken();
-        setGeneratedToken(ethers.utils.parseBytes32String(token));
-        setSuccess('Token generated successfully!');
+        setError('Token generated but could not retrieve the token value.');
       }
     } catch (error) {
       console.error('Token generation error:', error);
-      setError('Failed to generate token. Please try again.');
+      if (error.message.includes('Not authorized')) {
+        setError('You need admin privileges to generate tokens.');
+      } else {
+        setError('Failed to generate token. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
