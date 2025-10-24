@@ -1,36 +1,86 @@
-const Channels = ({ provider, account, villageChat, channels, currentChannel, setCurrentChannel }) => {
-  const channelHandler = async (channel) => {
-    // Check if user has joined
-    // If they haven't allow them to mint.
-    const hasJoined = await villageChat.hasJoined(channel.id, account)
+import React, { useState, useEffect } from 'react';
 
-    if (hasJoined) {
-      setCurrentChannel(channel)
-    } else {
-      const signer = await provider.getSigner()
-      const transaction = await villageChat.connect(signer).mint(channel.id, { value: channel.cost })
-      await transaction.wait()
-      setCurrentChannel(channel)
+const Channels = ({ account, currentChannel, setCurrentChannel }) => {
+  const [channels, setChannels] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchChannels();
+  }, []);
+
+  const fetchChannels = async () => {
+    try {
+      const response = await fetch('http://localhost:3030/api/channels');
+      const data = await response.json();
+      setChannels(data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching channels:', error);
+      setLoading(false);
     }
+  };
+
+  const channelHandler = (channel) => {
+    setCurrentChannel(channel);
+  };
+
+  if (loading) {
+    return (
+      <div className="channels">
+        <div className="channels__text">
+          <h2>Text Channels</h2>
+          <div style={{ color: '#a0a0a0', padding: '20px' }}>Loading channels...</div>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="channels">
       <div className="channels__text">
         <h2>Text Channels</h2>
+        <div style={{ color: '#a0a0a0', fontSize: '0.9em', marginBottom: '15px' }}>
+          Click a channel to join the conversation
+        </div>
 
         <ul>
-          {channels.map((channel, index) => (
+          {channels.map((channel) => (
             <li
-              onClick={() => channelHandler(channel)} key={index}
-              className={currentChannel && currentChannel.id.toString() === channel.id.toString() ? "active" : ""}>
-              {channel.name}
+              key={channel.id}
+              onClick={() => channelHandler(channel)}
+              className={currentChannel && currentChannel.id === channel.id ? "active" : ""}
+              style={{
+                padding: '10px',
+                marginBottom: '5px',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                border: currentChannel && currentChannel.id === channel.id ? '2px solid #00ff41' : '1px solid #333'
+              }}
+            >
+              <div style={{ fontWeight: 'bold', color: '#00ff41' }}>
+                #{channel.name}
+              </div>
+              <div style={{ fontSize: '0.8em', color: '#a0a0a0', marginTop: '2px' }}>
+                {channel.description}
+              </div>
+              {channel.cost > 0 && (
+                <div style={{ fontSize: '0.7em', color: '#ffa500', marginTop: '2px' }}>
+                  Cost: {channel.cost} ETH
+                </div>
+              )}
             </li>
           ))}
         </ul>
+
+        {channels.length === 0 && (
+          <div style={{ color: '#a0a0a0', padding: '20px', textAlign: 'center' }}>
+            No channels available. Check your connection.
+          </div>
+        )}
       </div>
     </div>
   );
-}
+};
 
 export default Channels;

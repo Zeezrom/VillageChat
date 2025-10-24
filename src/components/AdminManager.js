@@ -60,9 +60,7 @@ const AdminManager = ({ villageChat, account, isOwner }) => {
     }
   };
 
-  if (!isOwner) {
-    return null;
-  }
+  // All features unlocked for everyone
 
   return (
     <div className="admin-manager">

@@ -185,9 +185,8 @@ const TokenManager = ({ villageChat, account, isOwner }) => {
         )}
       </div>
 
-      {isOwner && (
-        <div style={{ marginBottom: '30px' }}>
-          <h3 style={{ color: '#ff8000', marginBottom: '15px' }}>Revoke Token (Owner Only)</h3>
+      <div style={{ marginBottom: '30px' }}>
+        <h3 style={{ color: '#ff8000', marginBottom: '15px' }}>Revoke Token</h3>
           <p style={{ color: '#a0a0a0', marginBottom: '20px', lineHeight: '1.5' }}>
             Revoke a token to prevent it from being used. This action cannot be undone.
           </p>

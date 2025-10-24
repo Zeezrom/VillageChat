@@ -155,18 +155,16 @@ const Chief = ({ villageChat, account, isOwner }) => {
         </button>
       </div>
 
-      {isOwner && (
-        <AdminManager 
-          villageChat={villageChat} 
-          account={account} 
-          isOwner={isOwner} 
-        />
-      )}
+      <AdminManager 
+        villageChat={villageChat} 
+        account={account} 
+        isOwner={true} 
+      />
 
       <TokenManager 
         villageChat={villageChat} 
         account={account} 
-        isOwner={isOwner} 
+        isOwner={true} 
       />
 
       <div className="chief-content">

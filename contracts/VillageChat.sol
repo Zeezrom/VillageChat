@@ -12,14 +12,14 @@ contract VillageChat is ERC721 {
     // Admin management
     mapping(address => bool) public admins;
 
-    // Token management
-    mapping(bytes32 => bool) public validTokens;
-    mapping(bytes32 => bool) public usedTokens;
+    // Token gating - allowed tokens for access
+    address[] public allowedTokens;
+    mapping(address => bool) public isAllowedToken;
     mapping(address => bool) public registeredUsers;
-    uint256 public tokenCounter;
 
     // Events
-    event TokenGenerated(bytes32 indexed token, address indexed admin, uint256 timestamp);
+    event TokenAdded(address indexed tokenAddress, address indexed admin, uint256 timestamp);
+    event TokenRemoved(address indexed tokenAddress, address indexed admin, uint256 timestamp);
 
     //channel datastructure
     struct Channel {
@@ -69,40 +69,59 @@ contract VillageChat is ERC721 {
         return admins[user];
     }
 
-    // Token management functions
-    function generateToken() public onlyAdmin returns (bytes32) {
-        tokenCounter++;
-        bytes32 token = keccak256(abi.encodePacked(block.timestamp, msg.sender, tokenCounter));
-        validTokens[token] = true;
-        emit TokenGenerated(token, msg.sender, block.timestamp);
-        return token;
+    // Token gating functions
+    function addAllowedToken(address _tokenAddress) public onlyAdmin {
+        require(!isAllowedToken[_tokenAddress], "Token already allowed");
+        allowedTokens.push(_tokenAddress);
+        isAllowedToken[_tokenAddress] = true;
+        emit TokenAdded(_tokenAddress, msg.sender, block.timestamp);
     }
 
-    function validateAndRegisterUser(bytes32 token) public returns (bool) {
-        // Special case for testing token "0000"
-        bytes32 testToken = keccak256(abi.encodePacked("0000"));
-        if (token == testToken) {
-            if (!registeredUsers[msg.sender]) {
-                registeredUsers[msg.sender] = true;
+    function removeAllowedToken(address _tokenAddress) public onlyAdmin {
+        require(isAllowedToken[_tokenAddress], "Token not allowed");
+        isAllowedToken[_tokenAddress] = false;
+        // Remove from array (inefficient but necessary for enumeration)
+        for (uint i = 0; i < allowedTokens.length; i++) {
+            if (allowedTokens[i] == _tokenAddress) {
+                allowedTokens[i] = allowedTokens[allowedTokens.length - 1];
+                allowedTokens.pop();
+                break;
             }
-            return true;
         }
-        
-        require(validTokens[token], "Invalid token");
-        require(!usedTokens[token], "Token already used");
+        emit TokenRemoved(_tokenAddress, msg.sender, block.timestamp);
+    }
+
+    function getAllowedTokensCount() public view returns (uint256) {
+        return allowedTokens.length;
+    }
+
+    function checkUserHoldsAllowedToken(address user) public view returns (bool) {
+        for (uint i = 0; i < allowedTokens.length; i++) {
+            // Use low-level call to check balanceOf, works for both ERC-20 and ERC-721
+            (bool success, bytes memory data) = allowedTokens[i].staticcall(abi.encodeWithSignature("balanceOf(address)", user));
+            if (success) {
+                uint256 balance = abi.decode(data, (uint256));
+                if (balance > 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    function validateAndRegisterUser() public returns (bool) {
         require(!registeredUsers[msg.sender], "User already registered");
-        
-        usedTokens[token] = true;
+
+        // Check if user holds any allowed token
+        bool holdsAllowedToken = checkUserHoldsAllowedToken(msg.sender);
+        require(holdsAllowedToken, "You must hold an allowed token to register");
+
         registeredUsers[msg.sender] = true;
         return true;
     }
 
     function isUserRegistered(address user) public view returns (bool) {
         return registeredUsers[user];
-    }
-
-    function revokeToken(bytes32 token) public onlyAdmin {
-        validTokens[token] = false;
     }
 
 //example of use of modifier
