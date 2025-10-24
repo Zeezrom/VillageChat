@@ -119,7 +119,8 @@ Then refresh this page and try connecting again.`
             cursor: 'pointer',
             fontSize: '14px',
             fontFamily: 'monospace',
-            transition: 'all 0.3s ease'
+            transition: 'all 0.3s ease',
+            marginBottom: '15px'
           }}
           title="Log out and return to landing page"
         >

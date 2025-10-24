@@ -85,23 +85,34 @@ function App() {
 
   //creating an ether provider
   const loadBlockchainData = async () => {
+    console.log('🔍 Loading blockchain data...');
+    
+    if (!window.ethereum) {
+      console.log('❌ window.ethereum not available');
+      return;
+    }
+    
     const provider = new ethers.providers.Web3Provider(window.ethereum)
     setProvider(provider)
+    console.log('✅ Provider created');
 
     const network = await provider.getNetwork()
-    const villageChat = new ethers.Contract(config[network.chainId].VillageChat.address, VillageChat, provider)
-    setVillageChat(villageChat)
-
-    const totalChannels = await villageChat.totalChannels()
-    const channels = []
-
-    for (var i = 1; i <= totalChannels; i++) {
-      const channel = await villageChat.getChannel(i)
-      channels.push(channel)
-      console.log(channel)
+    console.log('🌐 Network:', network);
+    
+    const contractAddress = config[network.chainId]?.VillageChat?.address;
+    console.log('📄 Contract address:', contractAddress);
+    
+    if (!contractAddress) {
+      console.log('❌ No contract address found for network', network.chainId);
+      return;
     }
+    
+    const villageChat = new ethers.Contract(contractAddress, VillageChat, provider)
+    setVillageChat(villageChat)
+    console.log('✅ VillageChat contract created:', villageChat.address);
 
-    setChannels(channels)
+    // Channels are now loaded from the database via the Channels component
+    setChannels([])
 
     window.ethereum.on('accountsChanged', async () => {
       window.location.reload()
@@ -146,12 +157,7 @@ function App() {
   }, [villageChat, account])
 
   const handleServerClick = (server) => {
-    // Check if user is trying to access admin page
-    if (server === 'chief' && !isAdmin) {
-      alert('Access denied. Only administrators can access the Chief Admin Panel.')
-      return
-    }
-    
+    // All features are now unlocked for everyone
     setCurrentPage(server)
     setActiveServer(server)
   }
@@ -186,6 +192,7 @@ function App() {
           onLogin={handleLogin}
           villageChat={villageChat}
           account={account}
+          setAccount={setAccount}
         />
       ) : (
         <>
@@ -200,20 +207,17 @@ function App() {
           />
 
           <main>
-            <Servers onServerClick={handleServerClick} activeServer={activeServer} isAdmin={isAdmin} />
+            <Servers onServerClick={handleServerClick} activeServer={activeServer} isAdmin={true} />
 
             {currentPage === 'chat' ? (
               <>
                 <Channels
-                  provider={provider}
                   account={account}
-                  villageChat={villageChat}
-                  channels={channels}
                   currentChannel={currentChannel}
                   setCurrentChannel={setCurrentChannel}
                 />
 
-                <Messages account={account} messages={messages} currentChannel={currentChannel} />
+                <Messages account={account} currentChannel={currentChannel} />
               </>
             ) : currentPage === 'vote' ? (
               <Vote />
