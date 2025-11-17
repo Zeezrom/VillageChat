@@ -31,9 +31,48 @@ const startServer = async () => {
       res.json(channel);
     }));
 
+    app.post('/api/channels', asyncHandler(async (req, res) => {
+      const { name, description, cost, isPublic, isAdmin, isOwner } = req.body;
+
+      // Check if user is admin or owner
+      if (!isAdmin && !isOwner) {
+        return res.status(403).json({ error: 'Only admins or owners can create channels' });
+      }
+
+      if (!name || name.trim().length === 0) {
+        return res.status(400).json({ error: 'Channel name is required' });
+      }
+
+      const channel = await database.addChannel({
+        name: name.trim(),
+        description: description?.trim() || '',
+        cost: cost || 0,
+        isPublic: isPublic !== false
+      });
+
+      res.json(channel);
+    }));
+
     app.get('/api/user-tokens', asyncHandler(async (req, res) => {
       const tokens = await database.getActiveUserTokens();
+      console.log('📊 API Response - Active user tokens:', tokens);
+      console.log('📊 API Response - Token count:', tokens.length);
       res.json(tokens);
+    }));
+
+    app.get('/api/user-tokens/all', asyncHandler(async (req, res) => {
+      const tokens = await database.getAllUserTokens();
+      console.log('📊 All user tokens (including inactive):', tokens);
+      res.json(tokens);
+    }));
+
+    app.post('/api/user-tokens', asyncHandler(async (req, res) => {
+      const { token, isActive = 1 } = req.body;
+      if (!token) {
+        return res.status(400).json({ error: 'Token address is required' });
+      }
+      const result = await database.addUserToken({ token, isActive });
+      res.json(result);
     }));
 
     app.get('/api/messages/:channelId', asyncHandler(async (req, res) => {

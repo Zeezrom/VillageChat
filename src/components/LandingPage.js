@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import config from '../config.json';
 
-const LandingPage = ({ onLogin, villageChat, account, setAccount }) => {
+const LandingPage = ({ onLogin, onBypassAdmin, villageChat, account, setAccount }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -14,7 +14,7 @@ const LandingPage = ({ onLogin, villageChat, account, setAccount }) => {
   // Debug logging for props
   console.log('🔍 LandingPage props - villageChat:', !!villageChat, 'account:', account);
 
-  // Fetch allowed tokens and real token address when contract is available
+  // Fetch allowed tokens from database when contract is available
   useEffect(() => {
     const fetchTokenData = async () => {
       if (!villageChat) return;
@@ -27,14 +27,14 @@ const LandingPage = ({ onLogin, villageChat, account, setAccount }) => {
           setRealTokenAddress(realToken);
         }
 
-        // Fetch allowed tokens from contract
-        const count = await villageChat.getAllowedTokensCount();
-        const tokens = [];
-        for (let i = 0; i < count; i++) {
-          const tokenAddress = await villageChat.allowedTokens(i);
-          tokens.push(tokenAddress);
+        // Fetch allowed tokens from database API
+        const response = await fetch('http://localhost:3030/api/user-tokens');
+        if (response.ok) {
+          const tokens = await response.json();
+          // Extract just the token addresses
+          const tokenAddresses = tokens.map(t => t.token);
+          setAllowedTokens(tokenAddresses);
         }
-        setAllowedTokens(tokens);
       } catch (error) {
         console.error('Error fetching token data:', error);
       }
@@ -176,40 +176,156 @@ Then refresh this page and try connecting again.`
       // Fetch active tokens from database
       const response = await fetch('http://localhost:3030/api/user-tokens');
       if (!response.ok) {
-        throw new Error('Failed to fetch allowed tokens from database');
+        const errorText = await response.text();
+        console.error('❌ Failed to fetch tokens from database:', response.status, errorText);
+        throw new Error(`Failed to fetch allowed tokens from database: ${response.status} ${errorText}`);
       }
 
       const activeTokens = await response.json();
-      console.log('📊 Active tokens from database:', activeTokens);
+      console.log('📊 Active tokens from database (raw):', activeTokens);
+      console.log('📊 Active tokens count:', activeTokens?.length);
+      console.log('📊 Active tokens type:', typeof activeTokens);
       
-      if (!Array.isArray(activeTokens) || activeTokens.length === 0) {
+      if (!Array.isArray(activeTokens)) {
+        console.error('❌ Invalid response format - expected array, got:', typeof activeTokens, activeTokens);
+        return false;
+      }
+      
+      if (activeTokens.length === 0) {
         console.log('❌ No active tokens found in database');
+        console.log('💡 Tip: Add your token using SQL: INSERT INTO user_tokens (token, isActive) VALUES ("0x...", 1)');
+        console.log('💡 Make sure isActive = 1 (not "1" as string, and not 0)');
         return false;
       }
 
-      // Get all NFT contracts owned by the user
-      const nftContracts = await getUserNFTContracts(userAddress);
-      console.log('🎯 User NFT contracts found:', nftContracts);
+      // Log each token for debugging
+      activeTokens.forEach((token, index) => {
+        console.log(`📋 Token ${index + 1}:`, {
+          id: token.id,
+          token: token.token,
+          isActive: token.isActive,
+          isActiveType: typeof token.isActive,
+          isActiveValue: token.isActive === 1 ? '✅ TRUE' : '❌ FALSE'
+        });
+      });
 
-      // Check if any of the user's NFT contracts match active tokens
-      for (const nftContract of nftContracts) {
-        const normalizedContractAddress = ethers.utils.getAddress(nftContract);
-        console.log(`🔍 Checking if ${normalizedContractAddress} matches database tokens...`);
-        
-        const matchingToken = activeTokens.find(token => 
-          ethers.utils.getAddress(token.token) === normalizedContractAddress
-        );
-        
-        if (matchingToken) {
-          console.log(`✅ Found matching token in database:`, matchingToken);
-          if (matchingToken.isActive === 1) {
-            console.log('🎉 ACCESS GRANTED! User has matching active NFT contract');
-            return true;
-          } else {
-            console.log('❌ Token found but is not active (isActive = 0)');
+      // Filter to only active tokens (check both 1 and "1" for compatibility)
+      const activeTokenAddresses = activeTokens
+        .filter(token => {
+          const isActive = token.isActive === 1 || token.isActive === "1" || token.isActive === true;
+          if (!isActive) {
+            console.log(`⚠️ Token ${token.token} is not active (isActive=${token.isActive}, type=${typeof token.isActive})`);
           }
-        } else {
-          console.log(`❌ No matching token found for ${normalizedContractAddress}`);
+          return isActive;
+        })
+        .map(token => {
+          try {
+            return ethers.utils.getAddress(token.token);
+          } catch (error) {
+            console.error(`❌ Invalid token address format: ${token.token}`, error);
+            return null;
+          }
+        })
+        .filter(addr => addr !== null);
+      
+      console.log('✅ Active token addresses to check (normalized):', activeTokenAddresses);
+      console.log('✅ Number of valid active addresses:', activeTokenAddresses.length);
+
+      // Check if user owns any NFTs from the active token contracts
+      for (const tokenAddress of activeTokenAddresses) {
+        try {
+          console.log(`🔍 Checking if user owns NFT from contract: ${tokenAddress}`);
+          
+          const nftContract = new ethers.Contract(
+            tokenAddress,
+            [
+              'function balanceOf(address owner) view returns (uint256)',
+              'function ownerOf(uint256 tokenId) view returns (address)',
+              'function supportsInterface(bytes4 interfaceId) view returns (bool)',
+              'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)',
+              'function totalSupply() view returns (uint256)'
+            ],
+            villageChat.provider
+          );
+
+          // Try to check balance first (more reliable than interface check)
+          let balance = null;
+          try {
+            balance = await nftContract.balanceOf(userAddress);
+            console.log(`💰 Balance for ${tokenAddress}: ${balance.toString()}`);
+          } catch (balanceError) {
+            console.log(`⚠️ Could not check balance for ${tokenAddress}:`, balanceError.message);
+            // Try ownerOf as fallback (for ERC721)
+            try {
+              // Try checking if user owns token ID 0, 1, 2, 3, etc.
+              for (let tokenId = 0; tokenId < 10; tokenId++) {
+                try {
+                  const owner = await nftContract.ownerOf(tokenId);
+                  if (owner.toLowerCase() === userAddress.toLowerCase()) {
+                    console.log(`✅ User owns token ID ${tokenId} from contract ${tokenAddress}`);
+                    balance = ethers.BigNumber.from(1); // Set balance to 1 if we find ownership
+                    break;
+                  }
+                } catch (e) {
+                  // Token doesn't exist, continue
+                }
+              }
+            } catch (ownerError) {
+              console.log(`❌ Contract ${tokenAddress} does not support balanceOf or ownerOf`);
+              continue;
+            }
+          }
+
+          // If we have a balance > 0, grant access (even if interface check fails)
+          if (balance && balance.gt(0)) {
+            console.log(`✅ User owns ${balance.toString()} token(s) from contract: ${tokenAddress}`);
+            
+            // Try to get more info if it's ERC721
+            try {
+              const isERC721 = await nftContract.supportsInterface('0x80ac58cd').catch(() => false);
+              if (isERC721) {
+                try {
+                  const firstTokenId = await nftContract.tokenOfOwnerByIndex(userAddress, 0).catch(() => null);
+                  if (firstTokenId !== null) {
+                    console.log(`🎫 User owns token ID ${firstTokenId.toString()} from contract ${tokenAddress}`);
+                  }
+                } catch (e) {
+                  // Enumeration not supported, but that's okay
+                }
+              }
+            } catch (e) {
+              // Interface check failed, but we already know user has balance > 0
+              console.log('⚠️ Interface check failed, but user has balance > 0');
+            }
+            
+            // Find matching token in database
+            const matchingToken = activeTokens.find(token => 
+              ethers.utils.getAddress(token.token) === tokenAddress && (token.isActive === 1 || token.isActive === "1" || token.isActive === true)
+            );
+            
+            if (matchingToken) {
+              console.log('🎉 ACCESS GRANTED! User has matching active NFT contract');
+              return true;
+            } else {
+              console.log(`⚠️ Token found in wallet but not in active database tokens`);
+            }
+          } else {
+            console.log(`❌ User has no tokens (balance = 0) from contract: ${tokenAddress}`);
+            
+            // Try interface check to see what type of contract it is
+            try {
+              const isERC721 = await nftContract.supportsInterface('0x80ac58cd').catch(() => false);
+              const isERC1155 = await nftContract.supportsInterface('0xd9b67a26').catch(() => false);
+              console.log(`   Contract type: ERC721=${isERC721}, ERC1155=${isERC1155}`);
+            } catch (e) {
+              console.log(`   Could not determine contract type`);
+            }
+          }
+        } catch (error) {
+          console.log(`❌ Error checking contract ${tokenAddress}:`, error.message);
+          console.log(`   Error details:`, error);
+          // Continue checking other contracts
+          continue;
         }
       }
 
@@ -323,7 +439,7 @@ Then refresh this page and try connecting again.`
       const hasMatchingNFT = await checkUserHasMatchingNFTContract(account);
       
       if (!hasMatchingNFT) {
-        setError('You do not hold any NFT contracts that match the active tokens in our database. Please acquire a qualifying NFT to gain access.');
+        setError('You do not hold any NFT contracts that match the active tokens in our database.');
         setLoading(false);
         return;
       }
@@ -351,12 +467,17 @@ Then refresh this page and try connecting again.`
     }
   };
 
-  // Testing bypass function
+  // Testing bypass function - sets admin and owner to true
   const handleTestingBypass = () => {
-    setSuccess('Testing bypass activated! Welcome to VillageChat!');
-    setTimeout(() => {
-      onLogin();
-    }, 1000);
+    setSuccess('Bypass activated! You now have Admin and Owner privileges!');
+    if (onBypassAdmin) {
+      onBypassAdmin();
+    } else {
+      // Fallback to regular login if bypass function not provided
+      setTimeout(() => {
+        onLogin();
+      }, 1000);
+    }
   };
 
   return (
@@ -444,35 +565,6 @@ Then refresh this page and try connecting again.`
           </div>
         )}
 
-        {allowedTokens.length > 0 && (
-          <div style={{ marginBottom: '20px' }}>
-            <h3 style={{
-              color: '#00ff41',
-              marginBottom: '10px',
-              fontSize: '1.1em'
-            }}>
-              Allowed Tokens:
-            </h3>
-            <div style={{
-              background: 'rgba(0, 0, 0, 0.3)',
-              border: '1px solid #333',
-              borderRadius: '5px',
-              padding: '10px',
-              marginBottom: '20px'
-            }}>
-              {allowedTokens.map((token, index) => (
-                <div key={index} style={{
-                  color: '#a0a0a0',
-                  fontSize: '0.9em',
-                  fontFamily: 'monospace',
-                  marginBottom: '5px'
-                }}>
-                  {token}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {!account ? (
           <button

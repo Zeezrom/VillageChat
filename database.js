@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
 
@@ -9,13 +10,25 @@ class Database {
 
   async init() {
     if (!this.dbPromise) {
+      const dbPath = path.join(__dirname, 'data', 'villagechat.db');
+      console.log('📁 Database file path:', dbPath);
+      console.log('📁 Database file exists:', fs.existsSync(dbPath));
+      
       this.dbPromise = open({
-        filename: path.join(__dirname, 'data', 'villagechat.db'),
+        filename: dbPath,
         driver: sqlite3.Database
       }).then(async (db) => {
         await db.exec('PRAGMA foreign_keys = ON');
         await this.migrate(db);
         await this.seedData(db);
+        
+        // Log all tokens on startup for debugging
+        const allTokens = await db.all('SELECT * FROM user_tokens');
+        console.log('📊 All tokens in database on startup:', allTokens.length);
+        allTokens.forEach(token => {
+          console.log(`   - ID: ${token.id}, Token: ${token.token}, isActive: ${token.isActive} (type: ${typeof token.isActive})`);
+        });
+        
         return db;
       }).catch((error) => {
         console.error('Database initialization error:', error);
@@ -199,12 +212,75 @@ class Database {
 
   async getActiveUserTokens() {
     const db = await this.getDb();
-    return db.all(
+    
+    // First, get ALL tokens to see what's in the database
+    const allTokens = await db.all('SELECT * FROM user_tokens');
+    console.log('🔍 Database query - ALL tokens in database:', allTokens.length);
+    allTokens.forEach(token => {
+      console.log(`   - ID: ${token.id}, Token: ${token.token}, isActive: ${token.isActive} (type: ${typeof token.isActive}, value: ${JSON.stringify(token.isActive)})`);
+    });
+    
+    // Now get only active tokens
+    const tokens = await db.all(
       `SELECT id, token, isActive
        FROM user_tokens
        WHERE isActive = 1
        ORDER BY id ASC`
     );
+    console.log('🔍 Database query - Active tokens found (WHERE isActive = 1):', tokens.length);
+    console.log('🔍 Database query - Active tokens:', JSON.stringify(tokens, null, 2));
+    
+    // Also try with different comparisons
+    const tokensAsString = await db.all(
+      `SELECT id, token, isActive
+       FROM user_tokens
+       WHERE isActive = '1'
+       ORDER BY id ASC`
+    );
+    console.log('🔍 Database query - Active tokens (WHERE isActive = "1"):', tokensAsString.length);
+    
+    return tokens;
+  }
+
+  async getAllUserTokens() {
+    const db = await this.getDb();
+    const tokens = await db.all(
+      `SELECT id, token, isActive
+       FROM user_tokens
+       ORDER BY id ASC`
+    );
+    console.log('🔍 Database query - All tokens found:', tokens.length);
+    return tokens;
+  }
+
+  async addUserToken({ token, isActive = 1 }) {
+    const db = await this.getDb();
+    try {
+      const result = await db.run(
+        'INSERT OR REPLACE INTO user_tokens (token, isActive) VALUES (?, ?)',
+        token,
+        isActive
+      );
+      return db.get(
+        `SELECT id, token, isActive
+         FROM user_tokens
+         WHERE id = ?`,
+        result.lastID
+      );
+    } catch (error) {
+      // If token already exists, update it
+      await db.run(
+        'UPDATE user_tokens SET isActive = ? WHERE token = ?',
+        isActive,
+        token
+      );
+      return db.get(
+        `SELECT id, token, isActive
+         FROM user_tokens
+         WHERE token = ?`,
+        token
+      );
+    }
   }
 }
 
