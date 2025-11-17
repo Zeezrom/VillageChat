@@ -73,6 +73,38 @@ Before running this project, make sure you have the following installed:
    ```
    The application will open at `http://localhost:3000`
 
+## 🚀 Deployment
+
+### Docker Deployment
+
+To deploy the application using Docker for production:
+
+1. **Ensure Docker and Docker Compose are installed**
+
+2. **Build and run the application**
+   ```bash
+   npm run docker
+   ```
+   Or manually:
+   ```bash
+   docker-compose up --build
+   ```
+
+3. **Access the application**
+   - The app will be available at `http://localhost:3030`
+   - For external access, ensure port 3030 is open and accessible
+
+4. **Database persistence**
+   - The SQLite database is stored in the `./data` directory
+   - Data persists between container restarts
+
+### Production Considerations
+
+- **Security**: Update CORS settings in `server.js` for specific domains in production
+- **Environment Variables**: Set `PORT` environment variable if needed
+- **SSL/TLS**: Add reverse proxy (nginx) for HTTPS in production
+- **Scaling**: For multiple users, consider using a managed database instead of SQLite
+
 ## 🎯 Usage
 
 ### Connecting Your Wallet
