@@ -52,10 +52,43 @@ function App() {
     
     try {
       console.log('Checking admin status for account:', userAccount)
-      const isAdminStatus = await villageChatContract.isAdmin(userAccount)
-      const ownerAddress = await villageChatContract.owner()
-      const isOwnerStatus = userAccount.toLowerCase() === ownerAddress.toLowerCase()
-      const userRegisteredStatus = await villageChatContract.isUserRegistered(userAccount)
+      
+      // Check if isAdmin function exists and is callable
+      let isAdminStatus = false
+      if (typeof villageChatContract.isAdmin === 'function') {
+        try {
+          isAdminStatus = await villageChatContract.isAdmin(userAccount)
+        } catch (error) {
+          console.warn('Error calling isAdmin:', error.message)
+          isAdminStatus = false
+        }
+      } else {
+        console.warn('isAdmin function not available on contract')
+      }
+      
+      // Check owner status
+      let isOwnerStatus = false
+      let ownerAddress = null
+      if (typeof villageChatContract.owner === 'function') {
+        try {
+          ownerAddress = await villageChatContract.owner()
+          isOwnerStatus = userAccount.toLowerCase() === ownerAddress.toLowerCase()
+        } catch (error) {
+          console.warn('Error calling owner:', error.message)
+        }
+      } else {
+        console.warn('owner function not available on contract')
+      }
+      
+      // Check user registration
+      let userRegisteredStatus = false
+      if (typeof villageChatContract.isUserRegistered === 'function') {
+        try {
+          userRegisteredStatus = await villageChatContract.isUserRegistered(userAccount)
+        } catch (error) {
+          console.warn('Error calling isUserRegistered:', error.message)
+        }
+      }
       
       console.log('Admin status:', isAdminStatus)
       console.log('Owner status:', isOwnerStatus)
@@ -81,6 +114,15 @@ function App() {
       setIsUserRegistered(false)
       setShowLandingPage(true)
     }
+  }
+
+  // Bypass function to set admin and owner status
+  const handleBypassAdmin = () => {
+    console.log('Bypassing admin check - setting admin and owner to true')
+    setIsAdmin(true)
+    setIsOwner(true)
+    setIsUserRegistered(true)
+    setShowLandingPage(false)
   }
 
   //creating an ether provider
@@ -190,6 +232,7 @@ function App() {
       {showLandingPage ? (
         <LandingPage 
           onLogin={handleLogin}
+          onBypassAdmin={handleBypassAdmin}
           villageChat={villageChat}
           account={account}
           setAccount={setAccount}
@@ -207,7 +250,7 @@ function App() {
           />
 
           <main>
-            <Servers onServerClick={handleServerClick} activeServer={activeServer} isAdmin={true} />
+            <Servers onServerClick={handleServerClick} activeServer={activeServer} isAdmin={isAdmin} />
 
             {currentPage === 'chat' ? (
               <>
@@ -215,6 +258,8 @@ function App() {
                   account={account}
                   currentChannel={currentChannel}
                   setCurrentChannel={setCurrentChannel}
+                  isAdmin={isAdmin}
+                  isOwner={isOwner}
                 />
 
                 <Messages account={account} currentChannel={currentChannel} />
