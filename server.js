@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { Server } = require('socket.io');
 const database = require('./database');
 
@@ -16,6 +17,9 @@ const startServer = async () => {
     const app = express();
     app.use(cors());
     app.use(express.json());
+
+    // Serve static files from the React app build directory
+    app.use(express.static(path.join(__dirname, 'build')));
 
     // REST API endpoints
     app.get('/api/channels', asyncHandler(async (req, res) => {
@@ -92,6 +96,11 @@ const startServer = async () => {
       res.json(user);
     }));
 
+    // Catch all handler: send back React's index.html file for client-side routing
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(__dirname, 'build', 'index.html'));
+    });
+
     // Error handler
     app.use((err, req, res, next) => {
       console.error('API error:', err);
@@ -104,7 +113,7 @@ const startServer = async () => {
 
     const io = new Server(server, {
       cors: {
-        origin: 'http://localhost:3000'
+        origin: '*'
       }
     });
 
